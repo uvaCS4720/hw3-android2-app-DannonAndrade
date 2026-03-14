@@ -30,6 +30,9 @@ class ScoreViewModel(application: Application) : AndroidViewModel(application) {
     private val _date = MutableStateFlow(df.format(Date()))
     val date: StateFlow<String> = _date.asStateFlow()
 
+    private val _isOnline = MutableStateFlow(repo.isOnline(application))
+    val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
+
     fun setGender(g: String) {
         _gender.value = g
         refresh()
@@ -41,10 +44,15 @@ class ScoreViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun refresh() {
+        _isOnline.value = repo.isOnline(getApplication())
+        
         viewModelScope.launch {
             _loading.value = true
-            repo.loadGames(_gender.value, _date.value, getApplication()).collect {
-                _games.value = it
+            try {
+                repo.loadGames(_gender.value, _date.value, getApplication()).collect {
+                    _games.value = it
+                }
+            } finally {
                 _loading.value = false
             }
         }

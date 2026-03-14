@@ -41,8 +41,23 @@ class MainActivity : ComponentActivity() {
                 )
                 LaunchedEffect(Unit) { vm.refresh() }
 
+                val isOnline by vm.isOnline.collectAsState()
+
                 Scaffold(modifier = Modifier.fillMaxSize()) { pad ->
                     Column(modifier = Modifier.padding(pad).fillMaxSize()) {
+                        if (!isOnline) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "Offline Mode - Refresh Disabled",
+                                    modifier = Modifier.padding(8.dp),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
                         Row(
                             modifier = Modifier.padding(8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -98,7 +113,10 @@ class MainActivity : ComponentActivity() {
                                     label = { Text("Women") }
                                 )
                             }
-                            IconButton(onClick = { vm.refresh() }) {
+                            IconButton(
+                                onClick = { vm.refresh() },
+                                enabled = isOnline
+                            ) {
                                 Icon(Icons.Default.Refresh, "Refresh")
                             }
                         }

@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 class Repository(context: Context) {
     private val dao = getDatabase(context).gameDao()
@@ -26,33 +27,35 @@ class Repository(context: Context) {
                 val day = parts[1].toIntOrNull() ?: 1
                 val year = parts[2].toIntOrNull() ?: 2026
                 try {
-                    val retrofit = Api.create()
-                    val api = retrofit.create(ScoreApi::class.java)
-                    val url = Api.buildUrl(gender, year, month, day)
-                    val resp = withContext(Dispatchers.IO) { api.getScores(url) }
-                    val entities = resp.games.map { wrapper ->
-                        val g = wrapper.game
-                        val winner = when {
-                            g.gameState == "final" && g.home.winner -> g.home.names.short
-                            g.gameState == "final" && g.away.winner -> g.away.names.short
-                            else -> null
+                    withTimeout(5000L) {
+                        val retrofit = Api.create()
+                        val api = retrofit.create(ScoreApi::class.java)
+                        val url = Api.buildUrl(gender, year, month, day)
+                        val resp = withContext(Dispatchers.IO) { api.getScores(url) }
+                        val entities = resp.games.map { wrapper ->
+                            val g = wrapper.game
+                            val winner = when {
+                                g.gameState == "final" && g.home.winner -> g.home.names.short
+                                g.gameState == "final" && g.away.winner -> g.away.names.short
+                                else -> null
+                            }
+                            GameEntity(
+                                gameId = g.gameID,
+                                gender = gender,
+                                date = date,
+                                awayTeam = g.away.names.short,
+                                homeTeam = g.home.names.short,
+                                awayScore = g.away.score,
+                                homeScore = g.home.score,
+                                gameState = g.gameState,
+                                startTime = g.startTime,
+                                currentPeriod = g.currentPeriod,
+                                contestClock = g.contestClock,
+                                winner = winner
+                            )
                         }
-                        GameEntity(
-                            gameId = g.gameID,
-                            gender = gender,
-                            date = date,
-                            awayTeam = g.away.names.short,
-                            homeTeam = g.home.names.short,
-                            awayScore = g.away.score,
-                            homeScore = g.home.score,
-                            gameState = g.gameState,
-                            startTime = g.startTime,
-                            currentPeriod = g.currentPeriod,
-                            contestClock = g.contestClock,
-                            winner = winner
-                        )
+                        withContext(Dispatchers.IO) { dao.insertAll(entities) }
                     }
-                    withContext(Dispatchers.IO) { dao.insertAll(entities) }
                 } catch (_: Exception) {}
             }
         }
